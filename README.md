@@ -76,7 +76,9 @@ published package public so Azure can pull it without credentials:
 1. Go to your GitHub profile → **Packages** (or the repo's right sidebar → **Packages**).
 2. Open the `vcdiscordbot` package → **Package settings** → **Change visibility** → **Public**.
 
-Your image URL is `ghcr.io/<your-github-username>/<repo-name>:latest`.
+Your image URL is `ghcr.io/<your-github-username>/<repo-name>:latest`, all
+**lowercase** (Docker image names can't have capital letters, e.g.
+`CazIsABoi` → `cazisaboi` — the workflow lowercases this for you automatically).
 
 ### 2. Deploy a Container Instance from the Portal
 
@@ -87,7 +89,7 @@ Your image URL is `ghcr.io/<your-github-username>/<repo-name>:latest`.
    - Container name: `vcdiscordbot`
    - Region: pick one close to you
    - Image source: **Other registry**
-   - Image: `ghcr.io/<your-github-username>/<repo-name>:latest`
+   - Image: `ghcr.io/<your-github-username>/<repo-name>:latest` (lowercase)
    - Size: change to the smallest option, **1 vCPU / 1 GB** (or use "See all sizes" to go lower if offered) — this is what keeps the cost down
 4. **Networking** tab: default settings are fine (public IP isn't needed, but leaving it doesn't cost extra).
 5. **Advanced** tab → **Environment variables**: add one row:
