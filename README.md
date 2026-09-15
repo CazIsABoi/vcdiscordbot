@@ -25,9 +25,7 @@ for free via GitHub Pages — no separate hosting needed. To turn it on:
    - `https://<your-github-username>.github.io/<repo-name>/privacy.html`
 
 Paste those URLs into the Discord Developer Portal (**your app → General
-Information → Terms of Service URL / Privacy Policy URL**). The pages'
-contact links point at this repo's GitHub Issues — edit `docs/terms.html`
-and `docs/privacy.html` if you'd rather list a different contact method.
+Information → Terms of Service URL / Privacy Policy URL**).
 
 ## Commands
 
