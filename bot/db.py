@@ -88,6 +88,11 @@ class Database:
         await self.conn.execute("DELETE FROM guild_config WHERE guild_id = ?", (guild_id,))
         await self.conn.commit()
 
+    async def delete_all_guild_data(self, guild_id: int) -> None:
+        await self.conn.execute("DELETE FROM guild_config WHERE guild_id = ?", (guild_id,))
+        await self.conn.execute("DELETE FROM temp_channels WHERE guild_id = ?", (guild_id,))
+        await self.conn.commit()
+
     async def add_temp_channel(self, channel_id: int, guild_id: int, owner_id: int) -> None:
         await self.conn.execute(
             "INSERT OR REPLACE INTO temp_channels (channel_id, guild_id, owner_id) VALUES (?, ?, ?)",

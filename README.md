@@ -12,6 +12,23 @@ voice channel, which is deleted automatically once everyone leaves.
   permit/reject specific members, transfer ownership, claim an abandoned channel
 - SQLite persistence for server configuration and channel ownership
 
+## Terms of Service / Privacy Policy
+
+`docs/` contains a Terms of Service and Privacy Policy for the Bot, published
+for free via GitHub Pages — no separate hosting needed. To turn it on:
+
+1. On GitHub, go to the repo's **Settings** → **Pages**.
+2. Under **Build and deployment**, set **Source** to **Deploy from a branch**.
+3. Set **Branch** to this branch (or `main`, once merged) and the folder to **/docs**, then **Save**.
+4. After a minute, the pages are live at:
+   - `https://<your-github-username>.github.io/<repo-name>/terms.html`
+   - `https://<your-github-username>.github.io/<repo-name>/privacy.html`
+
+Paste those URLs into the Discord Developer Portal (**your app → General
+Information → Terms of Service URL / Privacy Policy URL**). The pages'
+contact links point at this repo's GitHub Issues — edit `docs/terms.html`
+and `docs/privacy.html` if you'd rather list a different contact method.
+
 ## Commands
 
 | Command | Who | Description |
