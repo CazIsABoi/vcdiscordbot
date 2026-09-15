@@ -26,6 +26,12 @@ class TempVoice(commands.Cog):
         self.bot = bot
         self.db = db
 
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild: discord.Guild) -> None:
+        # The bot was kicked or the server was deleted: stop retaining anything for it.
+        await self.db.delete_all_guild_data(guild.id)
+        log.info("Purged stored data for guild %s after removal", guild.id)
+
     # ---------- Owner-only guard for control commands ----------
 
     async def _require_owner(self, interaction: discord.Interaction) -> discord.VoiceChannel | None:
