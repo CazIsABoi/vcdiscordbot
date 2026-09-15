@@ -83,3 +83,16 @@ code {
 }
 
 a { color: var(--accent); }
+
+.notice {
+  background: var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--muted);
+  margin: 20px 0;
+}
+
+.notice strong {
+  color: var(--fg);
+}
