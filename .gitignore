@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# VCDiscordBot runtime data
+data/
+*.db
+*.db-journal
