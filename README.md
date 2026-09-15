@@ -58,60 +58,73 @@ docker compose logs -f
 
 The SQLite database is persisted to `./data` on the host via a bind mount.
 
-## Hosting cheaply on Azure
+## Hosting cheaply on Azure (no terminal required)
 
-The bot only needs to hold one persistent WebSocket connection to Discord and
-handle occasional voice-state events, so it runs comfortably on the smallest
-compute Azure offers. Two options, cheapest first:
+You don't need Docker, the Azure CLI, or a local terminal for this path —
+GitHub builds the container image for you, and everything else is clicking
+through the [Azure Portal](https://portal.azure.com) website.
 
-### Option A: Azure Container Instances (ACI)
+### 1. Let GitHub build the image
 
-Simplest option, billed per second, no VM to patch. Push the image to a
-registry (Azure Container Registry's free/Basic tier works), then deploy:
+This repo includes `.github/workflows/docker-publish.yml`, which automatically
+builds the Docker image and publishes it to GitHub Container Registry (GHCR)
+every time you push to `main` (you can also trigger it manually from the
+**Actions** tab → *Build and publish Docker image* → *Run workflow*).
 
-```bash
-az login
-az acr create --resource-group vcbot-rg --name <yourregistry> --sku Basic
-az acr login --name <yourregistry>
-docker build -t <yourregistry>.azurecr.io/vcdiscordbot:latest .
-docker push <yourregistry>.azurecr.io/vcdiscordbot:latest
+After it runs once (check the **Actions** tab for a green check), make the
+published package public so Azure can pull it without credentials:
+1. Go to your GitHub profile → **Packages** (or the repo's right sidebar → **Packages**).
+2. Open the `vcdiscordbot` package → **Package settings** → **Change visibility** → **Public**.
 
-DISCORD_TOKEN=your-token ./azure/deploy-aci.sh vcbot-rg <yourregistry>.azurecr.io/vcdiscordbot:latest
-```
+Your image URL is `ghcr.io/<your-github-username>/<repo-name>:latest`.
 
-At the smallest size (0.5 vCPU / 0.5 GB) run 24/7, this typically lands in the
-**$10-20/month** range — check the [Azure pricing calculator](https://azure.microsoft.com/pricing/calculator/)
-for current rates in your region. Note that ACI's filesystem is ephemeral: if
-the container restarts, `data/tempvc.db` (server config + channel ownership)
-resets and you'll need to re-run `/tempvc-setup`. For a bot on one or two
-servers this is a minor inconvenience; if you want it to survive restarts,
-mount an Azure Files share as the `/app/data` volume (`az container create
---azure-file-volume-*` flags).
+### 2. Deploy a Container Instance from the Portal
 
-### Option B: A small burstable VM (cheapest for always-on + persistence)
+1. Sign into [portal.azure.com](https://portal.azure.com) with your school account.
+2. Search for **Container Instances** → **Create**.
+3. **Basics** tab:
+   - Resource group: create new, e.g. `vcbot-rg`
+   - Container name: `vcdiscordbot`
+   - Region: pick one close to you
+   - Image source: **Other registry**
+   - Image: `ghcr.io/<your-github-username>/<repo-name>:latest`
+   - Size: change to the smallest option, **1 vCPU / 1 GB** (or use "See all sizes" to go lower if offered) — this is what keeps the cost down
+4. **Networking** tab: default settings are fine (public IP isn't needed, but leaving it doesn't cost extra).
+5. **Advanced** tab → **Environment variables**: add one row:
+   - Name: `DISCORD_TOKEN`, Value: your bot's token, and toggle it as a **Secure value**.
+6. Click **Review + create**, then **Create**.
 
-A `Standard_B1s` VM (1 vCPU, 1 GB RAM) is usually the cheapest way to get a
-real, persistent disk alongside 24/7 uptime — typically **$7-10/month** pay-as-you-go,
-less with a 1-year reserved instance or your Azure free credit.
+Azure will pull the image and start the bot. Within a minute or two it should
+show as **Online** in your Discord server member list.
 
-```bash
-az vm create \
-  --resource-group vcbot-rg \
-  --name vcbot-vm \
-  --image Ubuntu2404 \
-  --size Standard_B1s \
-  --admin-username azureuser \
-  --generate-ssh-keys
+### 3. Check it's running / troubleshoot
 
-# SSH in, install Docker, then:
-git clone <your fork of this repo>
-cd VCDiscordBot
-cp .env.example .env   # fill in DISCORD_TOKEN
-docker compose up --build -d
-```
+In the Container Instance's page in the Portal:
+- **Containers** → **Logs** tab shows the bot's console output (look for
+  `Logged in as ...`).
+- If it's crash-looping, check the logs for a Python traceback — the most
+  common cause is a missing/incorrect `DISCORD_TOKEN`.
 
-`docker-compose.yml` sets `restart: unless-stopped`, so the bot comes back up
-automatically after a VM reboot.
+### Cost
+
+At 1 vCPU / 1 GB run 24/7 this typically lands around **$30-35/month** on pay-as-you-go
+pricing, or roughly half that at 0.5 vCPU / 0.5 GB if the Portal's size picker
+lets you go that low — check the [Azure pricing calculator](https://azure.microsoft.com/pricing/calculator/)
+for your region. Your school credit should comfortably cover this for a
+semester; keep an eye on **Cost Management + Billing** in the Portal so you
+don't run out unexpectedly.
+
+Note that ACI's filesystem is ephemeral: if the container restarts, `tempvc.db`
+(server config + channel ownership) resets and you'll need to re-run
+`/tempvc-setup`. Fine for casual use; see "Notes on persistence" below if you
+want it to survive restarts.
+
+### If you're comfortable with a terminal later
+
+`azure/deploy-aci.sh` and the Azure CLI (`az`) do the same thing as above from
+the command line, and Azure has a browser-based terminal called **Cloud
+Shell** (the `>_` icon in the Portal's top bar) if you ever want a "bash" that
+doesn't require installing anything locally.
 
 ### Why not Azure Container Apps' scale-to-zero?
 
