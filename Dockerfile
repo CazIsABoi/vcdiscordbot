@@ -11,7 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY bot ./bot
 
-RUN useradd --create-home appuser \
+# Fixed UID so the host-side ./data bind mount can be chowned to match (see
+# oracle/setup-vm.sh).
+RUN useradd --create-home --uid 1000 appuser \
     && mkdir -p /app/data \
     && chown -R appuser:appuser /app
 USER appuser

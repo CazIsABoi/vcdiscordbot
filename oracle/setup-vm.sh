@@ -31,7 +31,10 @@ if [[ ! -f .env ]]; then
   sed -i "s|^DISCORD_TOKEN=.*|DISCORD_TOKEN=${DISCORD_TOKEN}|" .env
 fi
 
+# The container runs as appuser (UID 1000, see Dockerfile), so the bind-mounted
+# data directory must be writable by that UID or SQLite can't create the DB.
 mkdir -p data
+sudo chown -R 1000:1000 data
 sudo docker compose up --build -d
 
 echo "Bot is running. Tail logs with: sudo docker compose logs -f"
