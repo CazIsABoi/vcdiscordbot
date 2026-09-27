@@ -73,6 +73,7 @@ docker compose logs -f
 
 The SQLite database is persisted to `./data` on the host via a bind mount.
 
+<<<<<<< Updated upstream
 ## Hosting cheaply on Azure (no terminal required)
 
 You don't need Docker, the Azure CLI, or a local terminal for this path —
@@ -142,13 +143,62 @@ want it to survive restarts.
 the command line, and Azure has a browser-based terminal called **Cloud
 Shell** (the `>_` icon in the Portal's top bar) if you ever want a "bash" that
 doesn't require installing anything locally.
+=======
+## Hosting for free on Oracle Cloud
 
-### Why not Azure Container Apps' scale-to-zero?
+The bot only needs to hold one persistent WebSocket connection to Discord and
+handle occasional voice-state events, so it fits comfortably inside Oracle
+Cloud Infrastructure's (OCI) **Always Free** tier. You get a VM with a real,
+persistent boot disk, so the SQLite database survives restarts and nothing
+costs anything as long as you stay within the free limits.
 
-Container Apps' free consumption tier is attractive, but scale-to-zero doesn't
-work for this bot: Discord bots hold a persistent gateway connection, so the
-container must stay at `min-replicas: 1` at all times, which puts the cost in
-the same ballpark as ACI without the scale-to-zero benefit.
+### 1. Create the VM
+
+1. Sign up at [cloud.oracle.com](https://www.oracle.com/cloud/free/). A card is
+   needed to verify your identity, but Always Free resources are never billed.
+2. In the console, go to **Compute > Instances > Create instance**.
+3. **Image:** pick **Canonical Ubuntu 24.04**.
+4. **Shape:** choose one of the Always Free shapes:
+   - `VM.Standard.A1.Flex` (Ampere ARM). Give it 1 OCPU / 6 GB, which is more
+     than enough. The image builds and runs fine on ARM.
+   - `VM.Standard.E2.1.Micro` (AMD, 1 GB RAM). Use this if A1 reports
+     "Out of capacity" in your home region.
+5. **Networking:** keep the default VCN with a public subnet and a public IPv4
+   address so you can SSH in. The bot only makes outbound connections, so you
+   don't need to open any ingress ports.
+6. **SSH keys:** upload your public key or download the generated key pair.
+
+### 2. Install and start the bot
+
+```bash
+ssh ubuntu@<public-ip>
+
+git clone <your fork of this repo>
+cd VCDiscordBot
+DISCORD_TOKEN=your-token ./oracle/setup-vm.sh
+```
+
+[oracle/setup-vm.sh](oracle/setup-vm.sh) installs Docker, writes `.env` from
+`.env.example` with your token, and runs `docker compose up --build -d`.
+`docker-compose.yml` sets `restart: unless-stopped`, so the bot comes back up
+automatically after a VM reboot. To update later, run `git pull` and re-run the
+script. It keeps your existing `.env`.
+>>>>>>> Stashed changes
+
+Useful commands on the VM:
+
+```bash
+sudo docker compose logs -f      # tail bot logs
+sudo docker compose restart      # restart the bot
+```
+
+### Keeping the VM from being reclaimed
+
+Oracle may reclaim Always Free instances that sit almost completely idle
+(under roughly 20% CPU, network, and memory usage) for 7 days. A Discord bot
+generates very little load, so if you're on a free-tier-only account and your
+instance gets stopped, upgrading the account to **Pay As You Go** stops
+reclamation. Always Free resources are still free on a PAYG account.
 
 ## Notes on persistence
 
@@ -157,5 +207,5 @@ the same ballpark as ACI without the scale-to-zero benefit.
 If the process restarts while temp channels exist, ownership tracking for
 those channels is lost — they'll still get cleaned up once empty via the
 `voice_states` intent, but owner commands won't recognize them as
-temp channels until a fresh one is created. Mount a persistent volume (Azure
-Files, or a VM's disk) in production if this matters to you.
+temp channels until a fresh one is created. Keep `data/` on persistent storage (the OCI VM's boot disk does this
+automatically via the `./data` bind mount) in production if this matters to you.
