@@ -27,6 +27,19 @@ class TempVoice(commands.Cog):
         self.db = db
 
     @commands.Cog.listener()
+    async def on_ready(self) -> None:
+        # Temp channels that emptied while the bot was offline never got a
+        # voice_state_update, so sweep them now or they pile up until the
+        # category hits Discord's 50-channel limit and creation starts failing.
+        for guild in self.bot.guilds:
+            for channel_id, _owner_id in await self.db.all_temp_channels(guild.id):
+                channel = guild.get_channel(channel_id)
+                if channel is None:
+                    await self.db.remove_temp_channel(channel_id)
+                elif isinstance(channel, discord.VoiceChannel):
+                    await self._maybe_delete_channel(channel)
+
+    @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild) -> None:
         # The bot was kicked or the server was deleted: stop retaining anything for it.
         await self.db.delete_all_guild_data(guild.id)
@@ -108,17 +121,25 @@ class TempVoice(commands.Cog):
                 overwrites=overwrites,
                 reason=f"Temporary voice channel for {member} ({member.id})",
             )
-            await member.move_to(channel, reason="Moved to their new temporary voice channel")
         except discord.Forbidden:
-            log.warning(
-                "Missing permissions to create/move into a temp channel in guild %s", guild.id
-            )
+            log.warning("Missing permissions to create a temp channel in guild %s", guild.id)
             return
         except discord.HTTPException:
             log.exception("Failed to create temp voice channel in guild %s", guild.id)
             return
 
+        # Track it before moving so it still gets cleaned up if the move fails.
         await self.db.add_temp_channel(channel.id, guild.id, member.id)
+
+        try:
+            await member.move_to(channel, reason="Moved to their new temporary voice channel")
+        except discord.HTTPException:
+            # Usually the member left the join channel before the move landed;
+            # don't leave an empty channel behind.
+            log.warning("Couldn't move %s into temp channel %s; removing it", member.id, channel.id)
+            await self._maybe_delete_channel(channel)
+            return
+
         log.info("Created temp channel %s for %s in guild %s", channel.id, member.id, guild.id)
 
     async def _maybe_delete_channel(self, channel: discord.VoiceChannel) -> None:
@@ -157,19 +178,31 @@ class TempVoice(commands.Cog):
     ) -> None:
         guild = interaction.guild
         assert guild is not None
+        # Several channel API calls can exceed the 3s interaction response window.
+        await interaction.response.defer(ephemeral=True)
 
         category = discord.utils.get(guild.categories, name=category_name)
         if category is None:
             category = await guild.create_category(category_name, reason="Temp VC setup")
 
-        create_channel = await guild.create_voice_channel(
-            channel_name, category=category, reason="Temp VC setup"
-        )
+        # Re-running setup must reuse the join channel rather than make another:
+        # older duplicates would look identical but silently do nothing.
+        config = await self.db.get_guild_config(guild.id)
+        create_channel = guild.get_channel(config.create_channel_id) if config else None
+        if not isinstance(create_channel, discord.VoiceChannel):
+            create_channel = discord.utils.get(category.voice_channels, name=channel_name)
+
+        if create_channel is None:
+            create_channel = await guild.create_voice_channel(
+                channel_name, category=category, reason="Temp VC setup"
+            )
+        elif create_channel.name != channel_name or create_channel.category != category:
+            await create_channel.edit(name=channel_name, category=category, reason="Temp VC setup")
 
         await self.db.set_guild_config(
             guild.id, create_channel.id, category.id, default_user_limit=default_user_limit
         )
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"Done. Join {create_channel.mention} to get your own temporary voice channel.",
             ephemeral=True,
         )
