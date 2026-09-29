@@ -14,7 +14,7 @@
       <a href="privacy.html" class="active">Privacy Policy</a>
     </nav>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: 2026-09-15</p>
+    <p class="updated">Last updated: 2026-09-29</p>
 
     <p>
       This Privacy Policy explains what data the VCDiscordBot Discord bot (the
@@ -27,12 +27,21 @@
       <li>The Discord server (guild) ID;</li>
       <li>The channel ID configured as the "join to create" channel, and its category ID;</li>
       <li>The channel ID and owning member's Discord user ID for each active temporary voice channel, so ownership commands (lock, kick, transfer, etc.) work correctly.</li>
+      <li>For each GitHub repository linked to a thread with <code>/github link</code>: the repository's name, the thread ID, the Discord user ID of whoever linked it, the ID of the Discord webhook created for it, and when a commit was last posted.</li>
     </ul>
     <p>
       The Bot does <strong>not</strong> read, log, or store message content —
       it does not request Discord's message content permission. It does not
       record voice audio; it only manages channel creation, deletion, and
       permissions.
+    </p>
+    <p>
+      When you link a GitHub repository, you sign in to GitHub and grant the
+      Bot temporary access. The Bot uses that access once to add a
+      commit webhook to the repository, then revokes or discards it. Your
+      GitHub access token is never stored or logged. Commit notifications
+      are sent by GitHub directly to Discord; they do not pass through the
+      Bot.
     </p>
 
     <h2>2. Use of AI</h2>
@@ -49,20 +58,24 @@
       This data is used exclusively to operate the temporary voice channel
       feature: knowing which channel to watch for new joins, and which member
       owns which temporary channel so that owner-only commands can be
-      enforced.
+      enforced, and knowing which GitHub repositories post to which threads
+      so links can be listed, removed, and cleaned up when inactive.
     </p>
 
     <h2>4. Data retention and deletion</h2>
     <ul>
       <li>A temporary channel's record is deleted automatically as soon as the channel itself is deleted (i.e. once it's empty).</li>
       <li>A server's configuration (join channel, category) is deleted when an administrator runs <code>/tempvc-setup disable</code>, or automatically when the Bot is removed from the server.</li>
+      <li>A GitHub link is deleted when someone runs <code>/github unlink</code>, when its thread is deleted, after 37 days without commits (with a warning posted after 30), or when the Bot is removed from the server.</li>
     </ul>
 
     <h2>5. Data sharing</h2>
     <p>
       Data is not sold, shared, or disclosed to any third party. It is stored
       only in the Bot's own database and is accessible only to whoever
-      operates the Bot's hosting.
+      operates the Bot's hosting. The only exception is GitHub linking: at
+      your request, the Bot gives GitHub the address of the Discord webhook
+      created for your thread so GitHub can post commits to it.
     </p>
 
     <h2>6. Your rights</h2>

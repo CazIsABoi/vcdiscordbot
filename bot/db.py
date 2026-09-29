@@ -19,6 +19,17 @@ CREATE TABLE IF NOT EXISTS temp_channels (
     guild_id INTEGER NOT NULL,
     owner_id INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS github_links (
+    webhook_id INTEGER PRIMARY KEY,
+    guild_id INTEGER NOT NULL,
+    thread_id INTEGER NOT NULL,
+    repo TEXT NOT NULL COLLATE NOCASE,
+    linked_by INTEGER NOT NULL,
+    last_activity INTEGER NOT NULL,
+    warned_at INTEGER,
+    UNIQUE (thread_id, repo)
+);
 """
 
 
@@ -29,6 +40,20 @@ class GuildConfig:
     category_id: int | None
     name_template: str
     default_user_limit: int
+
+
+@dataclass
+class GitHubLink:
+    webhook_id: int
+    guild_id: int
+    thread_id: int
+    repo: str
+    linked_by: int
+    last_activity: int
+    warned_at: int | None
+
+
+_LINK_COLUMNS = "webhook_id, guild_id, thread_id, repo, linked_by, last_activity, warned_at"
 
 
 class Database:
@@ -91,6 +116,7 @@ class Database:
     async def delete_all_guild_data(self, guild_id: int) -> None:
         await self.conn.execute("DELETE FROM guild_config WHERE guild_id = ?", (guild_id,))
         await self.conn.execute("DELETE FROM temp_channels WHERE guild_id = ?", (guild_id,))
+        await self.conn.execute("DELETE FROM github_links WHERE guild_id = ?", (guild_id,))
         await self.conn.commit()
 
     async def add_temp_channel(self, channel_id: int, guild_id: int, owner_id: int) -> None:
@@ -125,3 +151,59 @@ class Database:
             "SELECT channel_id, owner_id FROM temp_channels WHERE guild_id = ?", (guild_id,)
         ) as cursor:
             return await cursor.fetchall()
+
+    # ---------- GitHub links ----------
+
+    async def add_github_link(
+        self, webhook_id: int, guild_id: int, thread_id: int, repo: str, linked_by: int, now: int
+    ) -> None:
+        await self.conn.execute(
+            f"INSERT INTO github_links ({_LINK_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, NULL)",
+            (webhook_id, guild_id, thread_id, repo, linked_by, now),
+        )
+        await self.conn.commit()
+
+    async def remove_github_link(self, webhook_id: int) -> None:
+        await self.conn.execute("DELETE FROM github_links WHERE webhook_id = ?", (webhook_id,))
+        await self.conn.commit()
+
+    async def _github_links(self, where: str, params: tuple) -> list[GitHubLink]:
+        async with self.conn.execute(
+            f"SELECT {_LINK_COLUMNS} FROM github_links {where} ORDER BY repo", params
+        ) as cursor:
+            return [GitHubLink(*row) for row in await cursor.fetchall()]
+
+    async def get_github_link(self, thread_id: int, repo: str) -> GitHubLink | None:
+        links = await self._github_links("WHERE thread_id = ? AND repo = ?", (thread_id, repo))
+        return links[0] if links else None
+
+    async def github_links_for_thread(self, thread_id: int) -> list[GitHubLink]:
+        return await self._github_links("WHERE thread_id = ?", (thread_id,))
+
+    async def github_links_for_guild(self, guild_id: int) -> list[GitHubLink]:
+        return await self._github_links("WHERE guild_id = ?", (guild_id,))
+
+    async def all_github_links(self) -> list[GitHubLink]:
+        return await self._github_links("", ())
+
+    async def touch_github_link(self, webhook_id: int, now: int) -> bool:
+        """Record activity on a link and clear any inactivity warning. Returns False if untracked."""
+        cursor = await self.conn.execute(
+            "UPDATE github_links SET last_activity = ?, warned_at = NULL WHERE webhook_id = ?",
+            (now, webhook_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount > 0
+
+    async def touch_github_links_for_thread(self, thread_id: int, now: int) -> None:
+        await self.conn.execute(
+            "UPDATE github_links SET last_activity = ?, warned_at = NULL WHERE thread_id = ?",
+            (now, thread_id),
+        )
+        await self.conn.commit()
+
+    async def set_github_link_warned(self, webhook_id: int, now: int) -> None:
+        await self.conn.execute(
+            "UPDATE github_links SET warned_at = ? WHERE webhook_id = ?", (now, webhook_id)
+        )
+        await self.conn.commit()

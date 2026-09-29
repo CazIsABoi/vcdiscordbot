@@ -41,6 +41,22 @@ Information → Terms of Service URL / Privacy Policy URL**).
 | `/permit <member>` / `/reject <member>` | Channel owner | Allows/blocks a specific member from joining a locked channel |
 | `/transfer <member>` | Channel owner | Hands ownership to another member currently in the channel |
 | `/claim` | Anyone | Claims ownership of a temp channel if the owner has left |
+| `/github link <owner/repo>` | Thread creator or Manage Threads (plus repo admin on GitHub) | Posts the repo's new commits in the current thread |
+| `/github unlink <repo>` | Whoever linked it, thread creator, or Manage Threads | Stops posting that repo's commits and revokes its webhook |
+| `/github list` | Anyone in a thread; admins anywhere | Lists the thread's linked repos, or every link in the server for admins |
+| `/github keep` | Anyone in the thread | Resets the inactivity timer so the thread's links aren't removed |
+
+### GitHub commit feed
+
+`/github link` only works inside a thread. The bot has the user sign in to GitHub
+with a one-time code, then creates a Discord webhook just for that link and adds it to
+the repo itself (push events only). The webhook URL never appears in Discord, and the
+GitHub token is revoked or discarded immediately after. Discord's built-in GitHub
+formatter posts the commits, so no public endpoint is needed.
+
+Each link uses one of the parent channel's 15 Discord webhook slots. Links with no
+commits for 30 days get a warning in the thread and are removed 7 days later; links
+are also removed when their thread is deleted.
 
 ## Discord bot setup
 
@@ -49,7 +65,11 @@ Information → Terms of Service URL / Privacy Policy URL**).
    **Server Members Intent** (used to resolve member display names).
 3. Under **OAuth2 > URL Generator**, select the `bot` and `applications.commands`
    scopes, and grant these permissions: `Manage Channels`, `Move Members`,
-   `View Channels`, `Connect`. Use the generated URL to invite the bot.
+   `View Channels`, `Connect`, `Manage Webhooks`. Use the generated URL to invite the bot.
+4. For `/github link`: on GitHub, go to **Settings > Developer settings > OAuth Apps >
+   New OAuth App**. Any homepage and callback URL will do (they're unused), then tick
+   **Enable Device Flow**. Put the Client ID in `GITHUB_CLIENT_ID`, and optionally a
+   client secret in `GITHUB_CLIENT_SECRET` so the bot can revoke each token after use.
 
 ## Running locally
 
