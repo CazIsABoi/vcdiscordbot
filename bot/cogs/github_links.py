@@ -167,17 +167,15 @@ class GitHubLinks(commands.Cog):
         self, member: discord.Member, thread: discord.Thread, repo: str, token: str
     ) -> str:
         """Returns the linked repo's canonical name, or raises GitHubAuthError with a user-facing message."""
+        # The admin:repo_hook scope can't read private repos, so a 404 here may
+        # just mean private; creating the hook below is the real access check.
         status, data = await self._github("GET", f"/repos/{repo}", token)
-        if status == 404:
-            raise GitHubAuthError(
-                f"Couldn't find **{repo}**. Check the name. If the repo belongs to an organization, "
-                "an org owner may need to approve this bot's GitHub app first."
-            )
-        if status != 200:
+        if status == 200:
+            if not data.get("permissions", {}).get("admin"):
+                raise GitHubAuthError(f"You need admin access to **{repo}** to add a webhook to it.")
+            repo = data.get("full_name", repo)
+        elif status != 404:
             raise GitHubAuthError(f"GitHub returned an error looking up **{repo}** (HTTP {status}).")
-        if not data.get("permissions", {}).get("admin"):
-            raise GitHubAuthError(f"You need admin access to **{repo}** to add a webhook to it.")
-        repo = data.get("full_name", repo)
 
         if await self.db.get_github_link(thread.id, repo) is not None:
             raise GitHubAuthError(f"**{repo}** is already linked to this thread.")
@@ -211,6 +209,12 @@ class GitHubLinks(commands.Cog):
             raise
         if status != 201:
             await webhook.delete(reason="GitHub link failed")
+            if status == 404:
+                raise GitHubAuthError(
+                    f"Couldn't find **{repo}**, or you don't have admin access to it. Check the name. "
+                    "If the repo belongs to an organization, an org owner may need to approve this "
+                    "bot's GitHub app first."
+                )
             detail = data.get("message") or f"HTTP {status}"
             raise GitHubAuthError(f"GitHub wouldn't add the webhook to **{repo}**: {detail}")
 
