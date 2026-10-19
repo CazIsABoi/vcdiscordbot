@@ -45,6 +45,7 @@ Information → Terms of Service URL / Privacy Policy URL**).
 | `/github unlink <repo>` | Whoever linked it, thread creator, or Manage Threads | Stops posting that repo's commits and revokes its webhook |
 | `/github list` | Anyone in a thread; admins anywhere | Lists the thread's linked repos, or every link in the server for admins |
 | `/github keep` | Anyone in the thread | Resets the inactivity timer so the thread's links aren't removed |
+| `/pin <message>` / `/unpin <message>` | Thread creator | Pins/unpins a message (link or ID) in their own thread. Also available as right-click → **Apps → Pin or unpin** |
 
 ### GitHub commit feed
 
@@ -65,7 +66,7 @@ are also removed when their thread is deleted.
    **Server Members Intent** (used to resolve member display names).
 3. Under **OAuth2 > URL Generator**, select the `bot` and `applications.commands`
    scopes, and grant these permissions: `Manage Channels`, `Move Members`,
-   `View Channels`, `Connect`, `Manage Webhooks`. Use the generated URL to invite the bot.
+   `View Channels`, `Connect`, `Manage Webhooks`, `Pin Messages`. Use the generated URL to invite the bot.
 4. For `/github link`: on GitHub, go to **Settings > Developer settings > OAuth Apps >
    New OAuth App**. Any homepage and callback URL will do (they're unused), then tick
    **Enable Device Flow**. Put the Client ID in `GITHUB_CLIENT_ID`, and optionally a

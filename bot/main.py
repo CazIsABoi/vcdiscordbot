@@ -22,7 +22,7 @@ INTENTS = discord.Intents.default()
 INTENTS.members = True
 INTENTS.voice_states = True
 
-EXTENSIONS = ["bot.cogs.temp_voice", "bot.cogs.github_links"]
+EXTENSIONS = ["bot.cogs.temp_voice", "bot.cogs.github_links", "bot.cogs.thread_pins"]
 
 
 class TempVCBot(commands.Bot):
